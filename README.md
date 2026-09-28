@@ -108,6 +108,11 @@ kubectl --context k3d-cloud -n shiftnote logs -l app=transcription-worker -c wor
 
 ## Demos
 
+Watch them in:
+- **Grafana → Dashboards → ShiftNote**: traffic by version, error rate, accepted vs transcribed, lag, workers, latency
+- **Argo Rollouts dashboard**: `kubectl argo rollouts dashboard --context k3d-edge` → http://localhost:3100
+- **ArgoCD**: the `edge-shiftnote` app tree shows the canary ReplicaSets and AnalysisRuns
+
 **Canary with automatic rollback.** Run `./scripts/traffic.sh`. In `gitops/workloads/edge/ingest-api.yaml`, change `APP_VERSION` to `v2` and push: traffic shifts 20% → 50% → 100%. Then set `APP_VERSION: v3` and `ERROR_RATE: "0.5"` and push. The analysis sees the error rate on the canary and aborts, and traffic returns to v2. Revert the commit to clear it.
 ```bash
 kubectl argo rollouts get rollout ingest-api -n shiftnote --context k3d-edge -w   # optional plugin

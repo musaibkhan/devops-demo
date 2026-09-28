@@ -21,7 +21,7 @@ producer = Producer({
     "acks": "all",
     "enable.idempotence": True,
 })
-REQUESTS = Counter("ingest_requests_total", "Ingest requests by HTTP status", ["code"])
+REQUESTS = Counter("ingest_requests_total", "Ingest requests by HTTP status and app version", ["code", "version"])
 
 app = FastAPI()
 app.mount("/metrics", make_asgi_app())
@@ -40,7 +40,7 @@ def healthz():
 @app.post("/notes", status_code=202)
 def ingest(note: Note):
     if random.random() < ERROR_RATE:
-        REQUESTS.labels("500").inc()
+        REQUESTS.labels("500", VERSION).inc()
         raise HTTPException(500, "injected failure")
 
     event = {
@@ -57,8 +57,8 @@ def ingest(note: Note):
     producer.flush(5)
     # Only acknowledge once Kafka has the note: a 202 means it cannot be lost.
     if "err" not in result or result["err"] is not None:
-        REQUESTS.labels("503").inc()
+        REQUESTS.labels("503", VERSION).inc()
         raise HTTPException(503, "note not persisted, retry")
 
-    REQUESTS.labels("202").inc()
+    REQUESTS.labels("202", VERSION).inc()
     return {"id": event["id"], "version": VERSION}

@@ -1,4 +1,4 @@
-# Observability hub: cloud cluster only. Edge metrics will be remote-written here.
+# Observability hub: cloud cluster only. Edge metrics are remote-written here.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -7,9 +7,11 @@ metadata:
 spec:
   project: default
   sources:
+    # Values files for the charts below, plus the Grafana dashboards.
     - repoURL: https://github.com/musaibkhan/devops-demo.git
       targetRevision: main
       ref: values
+      path: gitops/platform/monitoring/dashboards
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: kube-prometheus-stack
       targetRevision: 91.8.1

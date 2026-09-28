@@ -1,0 +1,291 @@
+{
+  "title": "ShiftNote",
+  "uid": "shiftnote",
+  "editable": true,
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Edge requests/s by version",
+      "description": "Canary traffic split: during a rollout two versions serve side by side.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (version) (rate(ingest_requests_total{site=\"edge\"}[1m]))",
+          "legendFormat": "{{version}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Edge error rate by version",
+      "description": "The canary analysis aborts when the canary's error rate exceeds 5%.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (version) (rate(ingest_requests_total{site=\"edge\",code=~\"5..\"}[1m])) / sum by (version) (rate(ingest_requests_total{site=\"edge\"}[1m]))",
+          "legendFormat": "{{version}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Notes accepted at edge vs transcribed in cloud (/s)",
+      "description": "During a WAN outage the lines separate; after recovery the cloud catches up.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(rate(ingest_requests_total{site=\"edge\",code=\"202\"}[1m]))",
+          "legendFormat": "accepted (edge)"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "B",
+          "expr": "sum(rate(notes_transcribed_total[1m]))",
+          "legendFormat": "transcribed (cloud)"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Transcription backlog (consumer lag)",
+      "description": "KEDA scales workers on this value (target 10 per worker).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(kafka_consumergroup_lag{consumergroup=\"transcription-worker\"})",
+          "legendFormat": "waiting notes"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Workers",
+      "description": "Replicas set by KEDA, 1 to 6.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 8,
+        "w": 6,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "kube_deployment_status_replicas_available{namespace=\"shiftnote\",deployment=\"transcription-worker\"}",
+          "legendFormat": "workers"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "End-to-end latency (edge ingest \u2192 transcribed)",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 16,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(note_end_to_end_seconds_bucket[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(note_end_to_end_seconds_bucket[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(note_end_to_end_seconds_bucket[5m])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Notes transcribed within 60s (last 1h)",
+      "description": "SLO target: 99% of notes transcribed within 60 seconds.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(increase(note_end_to_end_seconds_bucket{le=\"60.0\"}[1h])) / sum(increase(note_end_to_end_seconds_count[1h]))",
+          "legendFormat": ""
+        }
+      ]
+    }
+  ],
+  "tags": [
+    "shiftnote"
+  ]
+}
