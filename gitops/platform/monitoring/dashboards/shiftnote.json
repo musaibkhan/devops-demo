@@ -76,7 +76,7 @@
             "uid": "prometheus"
           },
           "refId": "A",
-          "expr": "sum by (version) (rate(ingest_requests_total{site=\"edge\",code=~\"5..\"}[1m])) / sum by (version) (rate(ingest_requests_total{site=\"edge\"}[1m]))",
+          "expr": "(sum by (version) (rate(ingest_requests_total{site=\"edge\",code=~\"5..\"}[1m])) or sum by (version) (rate(ingest_requests_total{site=\"edge\"}[1m])) * 0) / sum by (version) (rate(ingest_requests_total{site=\"edge\"}[1m]))",
           "legendFormat": "{{version}}"
         }
       ]
