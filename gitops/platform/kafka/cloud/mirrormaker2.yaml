@@ -1,0 +1,43 @@
+# Store-and-forward: pulls care-notes from the edge site into the cloud as "edge.care-notes".
+# Runs next to the target cluster, so when the edge link drops it simply retries and
+# catches up from the committed offset once the site is back.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaMirrorMaker2
+metadata:
+  name: edge-to-cloud
+  namespace: kafka
+spec:
+  version: 4.2.1
+  replicas: 1
+  target:
+    alias: cloud
+    bootstrapServers: cloud-kafka-bootstrap:9092
+    groupId: mm2-edge-to-cloud
+    configStorageTopic: mm2-edge-to-cloud-configs
+    statusStorageTopic: mm2-edge-to-cloud-status
+    offsetStorageTopic: mm2-edge-to-cloud-offsets
+    config:
+      config.storage.replication.factor: 1
+      offset.storage.replication.factor: 1
+      status.storage.replication.factor: 1
+  mirrors:
+    - source:
+        alias: edge
+        bootstrapServers: k3d-edge-server-0:32100
+      topicsPattern: "care-notes"
+      groupsPattern: ".*"
+      sourceConnector:
+        tasksMax: 2
+        config:
+          replication.factor: 1
+          offset-syncs.topic.replication.factor: 1
+          sync.topic.acls.enabled: "false"
+      checkpointConnector:
+        config:
+          checkpoints.topic.replication.factor: 1
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { memory: 768Mi }
+  jvmOptions:
+    -Xms: 256m
+    -Xmx: 384m

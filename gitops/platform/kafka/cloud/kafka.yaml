@@ -1,0 +1,61 @@
+# Cloud Kafka: receives every site's notes via MirrorMaker2 (topic "edge.care-notes").
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: cloud
+spec:
+  replicas: 1
+  roles: [controller, broker]
+  storage:
+    type: persistent-claim
+    size: 5Gi
+    deleteClaim: true
+  resources:
+    requests: { cpu: 200m, memory: 1Gi }
+    limits: { memory: 1Gi }
+  jvmOptions:
+    -Xms: 512m
+    -Xmx: 512m
+---
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: cloud
+  namespace: kafka
+spec:
+  kafka:
+    version: 4.2.1
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+  entityOperator:
+    topicOperator: {}
+  # Exposes consumer lag (kafka_consumergroup_lag) to Prometheus for dashboards and the SLO.
+  kafkaExporter:
+    topicRegex: ".*"
+    groupRegex: ".*"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kafka-exporter
+  namespace: kafka
+spec:
+  selector:
+    matchLabels:
+      strimzi.io/kind: Kafka
+      strimzi.io/name: cloud-kafka-exporter
+  podMetricsEndpoints:
+    - port: tcp-prometheus
+      path: /metrics

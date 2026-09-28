@@ -1,0 +1,70 @@
+# Edge Kafka: the care home's local buffer. Dictations are written here first, so an
+# outage of the WAN link to the cloud never loses a note.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: edge
+spec:
+  replicas: 1
+  roles: [controller, broker]
+  storage:
+    type: persistent-claim
+    size: 5Gi
+    deleteClaim: true
+  resources:
+    requests: { cpu: 200m, memory: 1Gi }
+    limits: { memory: 1Gi }
+  jvmOptions:
+    -Xms: 512m
+    -Xmx: 512m
+---
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: edge
+  namespace: kafka
+spec:
+  kafka:
+    version: 4.2.1
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      # Reached by MirrorMaker2 in the cloud cluster over the shared container network.
+      # Plaintext for the demo; in production: tls: true + mTLS KafkaUser.
+      - name: external
+        port: 9094
+        type: nodeport
+        tls: false
+        configuration:
+          preferredNodePortAddressType: Hostname   # advertise k3d-edge-server-0, survives IP changes
+          bootstrap:
+            nodePort: 32100
+          brokers:
+            - broker: 0
+              nodePort: 32101
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+  entityOperator:
+    topicOperator: {}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: care-notes
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: edge
+spec:
+  partitions: 6        # upper bound for parallel transcription workers
+  replicas: 1
+  config:
+    retention.ms: 604800000   # 7 days: how long a site can be offline without losing notes

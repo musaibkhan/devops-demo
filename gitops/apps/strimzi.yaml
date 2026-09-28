@@ -1,0 +1,28 @@
+# Strimzi operator on every cluster; it manages Kafka resources in the "kafka" namespace.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: strimzi
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - clusters: {}
+  template:
+    metadata:
+      name: '{{.name}}-strimzi'
+    spec:
+      project: default
+      source:
+        repoURL: https://strimzi.io/charts/
+        chart: strimzi-kafka-operator
+        targetRevision: 1.2.0
+        helm:
+          releaseName: strimzi
+      destination:
+        server: '{{.server}}'
+        namespace: kafka
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        retry: { limit: 10, backoff: { duration: 10s, factor: 2, maxDuration: 3m } }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]

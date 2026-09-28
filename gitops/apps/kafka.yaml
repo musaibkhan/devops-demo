@@ -1,0 +1,40 @@
+# The two Kafka clusters differ (edge exposes a listener, cloud runs MirrorMaker2),
+# so each gets its own path.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: edge-kafka
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/musaibkhan/devops-demo.git
+    targetRevision: main
+    path: gitops/platform/kafka/edge
+  destination:
+    name: edge
+    namespace: kafka
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry: { limit: 10, backoff: { duration: 10s, factor: 2, maxDuration: 3m } }
+    # Strimzi CRDs arrive with the operator app; retry until they exist.
+    syncOptions: [SkipDryRunOnMissingResource=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloud-kafka
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/musaibkhan/devops-demo.git
+    targetRevision: main
+    path: gitops/platform/kafka/cloud
+  destination:
+    name: in-cluster
+    namespace: kafka
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry: { limit: 10, backoff: { duration: 10s, factor: 2, maxDuration: 3m } }
+    syncOptions: [SkipDryRunOnMissingResource=true]
