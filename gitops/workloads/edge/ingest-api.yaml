@@ -16,7 +16,7 @@ spec:
     metadata:
       labels:
         app: ingest-api
-        version: v1   # the release version: shown in Kiali/Grafana; change it to start a canary
+        version: v2   # the release version: shown in Kiali/Grafana; change it to start a canary
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
