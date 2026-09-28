@@ -36,20 +36,6 @@ locals {
   gen        = abspath("${path.module}/../.generated")
   cloud_kube = "${local.gen}/kubeconfig-cloud.yaml"
   edge       = yamldecode(file("${local.gen}/kubeconfig-edge.yaml"))
-  # The edge node's InternalIP is its address on the shared container network.
-  # If the container runtime reassigns it after a restart, re-run this stage.
-  edge_ip = one([
-    for a in data.kubernetes_nodes.edge.nodes[0].status[0].addresses : a.address if a.type == "InternalIP"
-  ])
-}
-
-provider "kubernetes" {
-  alias       = "edge"
-  config_path = "${local.gen}/kubeconfig-edge.yaml"
-}
-
-data "kubernetes_nodes" "edge" {
-  provider = kubernetes.edge
 }
 
 provider "helm" {
@@ -93,14 +79,15 @@ resource "kubernetes_secret_v1" "edge_cluster" {
   }
 
   data = {
-    name   = "edge"
-    server = "https://${local.edge_ip}:6443"
+    name = "edge"
+    # Container name on the shared network, resolved by the runtime's DNS. Unlike the
+    # IP it survives cluster stop/start. Matches --tls-san in k3d/edge.yaml.
+    server = "https://k3d-edge-server-0:6443"
     config = jsonencode({
       tlsClientConfig = {
-        serverName = "k3d-edge-server-0" # matches --tls-san in k3d/edge.yaml
-        caData     = local.edge.clusters[0].cluster["certificate-authority-data"]
-        certData   = local.edge.users[0].user["client-certificate-data"]
-        keyData    = local.edge.users[0].user["client-key-data"]
+        caData   = local.edge.clusters[0].cluster["certificate-authority-data"]
+        certData = local.edge.users[0].user["client-certificate-data"]
+        keyData  = local.edge.users[0].user["client-key-data"]
       }
     })
   }

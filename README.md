@@ -126,6 +126,11 @@ kubectl --context k3d-cloud -n shiftnote get hpa,pods -w
 
 **WAN outage.** `./scripts/wan.sh down` cuts the link between the sites. Notes are still accepted at the edge but stop arriving in the cloud. `./scripts/wan.sh up` restores it, and MirrorMaker2 delivers the backlog.
 
-## Teardown
+## Stop and start
 
-Run `terraform destroy` in `02-bootstrap`, then in `01-clusters`.
+```bash
+./scripts/down.sh             # stop clusters + Podman machine; all state is kept
+./scripts/up.sh               # resume (or build everything if the clusters don't exist)
+./scripts/ui.sh               # port-forward all UIs and print the logins; Ctrl+C closes them
+./scripts/down.sh --destroy   # delete the clusters and all data
+```
