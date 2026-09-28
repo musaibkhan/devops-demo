@@ -1,0 +1,22 @@
+# Kiali: the Istio UI for the edge site (traffic graph, mTLS, canary split, config validation).
+auth:
+  strategy: anonymous   # local demo only; use openid/token auth anywhere else
+
+# Fixed so ArgoCD doesn't see drift: the chart otherwise generates a random key on
+# every render. With anonymous auth there are no login sessions for it to protect.
+login_token:
+  signing_key: shiftnote-demo-anonymous-signkey
+
+deployment:
+  cluster_wide_access: true
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+
+external_services:
+  prometheus:
+    url: http://prometheus-server.monitoring.svc:80   # the edge Prometheus
+  grafana:
+    enabled: false
+  tracing:
+    enabled: false

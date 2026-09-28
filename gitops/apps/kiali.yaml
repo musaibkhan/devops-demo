@@ -1,0 +1,24 @@
+# Istio UI for the edge cluster: http://localhost:20001 via port-forward.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: edge-kiali
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/musaibkhan/devops-demo.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://kiali.org/helm-charts
+      chart: kiali-server
+      targetRevision: 2.32.0
+      helm:
+        releaseName: kiali
+        valueFiles: [$values/gitops/platform/kiali/values.yaml]
+  destination:
+    name: edge
+    namespace: istio-system
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry: { limit: 10, backoff: { duration: 10s, factor: 2, maxDuration: 3m } }
