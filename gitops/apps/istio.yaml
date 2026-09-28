@@ -1,0 +1,54 @@
+# Istio (sidecar mode + CNI) on every cluster: base CRDs, CNI node agent, istiod.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: istio
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - clusters: {}
+  template:
+    metadata:
+      name: '{{.name}}-istio'
+    spec:
+      project: default
+      sources:
+        - repoURL: https://github.com/musaibkhan/devops-demo.git
+          targetRevision: main
+          ref: values
+        - repoURL: https://istio-release.storage.googleapis.com/charts
+          chart: base
+          targetRevision: 1.30.5
+          helm:
+            releaseName: istio-base
+        - repoURL: https://istio-release.storage.googleapis.com/charts
+          chart: cni
+          targetRevision: 1.30.5
+          helm:
+            releaseName: istio-cni
+            valueFiles: [$values/gitops/platform/istio/cni-values.yaml]
+        - repoURL: https://istio-release.storage.googleapis.com/charts
+          chart: istiod
+          targetRevision: 1.30.5
+          helm:
+            releaseName: istiod
+            valueFiles: [$values/gitops/platform/istio/istiod-values.yaml]
+      destination:
+        server: '{{.server}}'
+        namespace: istio-system
+      # istiod patches its own webhooks at runtime; don't treat that as drift.
+      ignoreDifferences:
+        - group: admissionregistration.k8s.io
+          kind: ValidatingWebhookConfiguration
+          jqPathExpressions:
+            - .webhooks[]?.failurePolicy
+            - .webhooks[]?.clientConfig.caBundle
+        - group: admissionregistration.k8s.io
+          kind: MutatingWebhookConfiguration
+          jqPathExpressions:
+            - .webhooks[]?.clientConfig.caBundle
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        retry: { limit: 10, backoff: { duration: 10s, factor: 2, maxDuration: 3m } }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true, RespectIgnoreDifferences=true]

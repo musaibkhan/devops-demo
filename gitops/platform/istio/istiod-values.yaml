@@ -1,0 +1,9 @@
+global:
+  platform: k3d   # loads Istio's k3d profile (CNI paths)
+pilot:
+  cni:
+    enabled: true # no privileged istio-init container, so pods pass "restricted" PSS
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+meshConfig:
+  accessLogFile: /dev/stdout   # sidecar access logs land in Loki

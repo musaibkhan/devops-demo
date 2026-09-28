@@ -1,27 +1,13 @@
 terraform {
   required_version = ">= 1.6"
-  required_providers {
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
-    }
-  }
 }
-
-# Honours DOCKER_HOST, works with OrbStack and Docker Desktop.
-provider "docker" {}
 
 locals {
   out_dir = abspath("${path.module}/../.generated")
 }
 
-# One shared network so ArgoCD (cloud) can reach the edge API server
-# and MirrorMaker2 (cloud) can reach edge Kafka.
-resource "docker_network" "shiftnote" {
-  name = "shiftnote"
-}
-
-# Note: no mature k3d Terraform provider exists, so we shell out.
+# No mature k3d Terraform provider exists, so we shell out. k3d creates the shared
+# "shiftnote" network (see k3d/*.yaml) so ArgoCD in cloud can reach the edge API.
 # On AWS this block becomes `module "eks"` and stage 02 does not change.
 # Clusters are created sequentially on purpose: parallel k3d runs race on ~/.kube/config.
 resource "terraform_data" "clusters" {
@@ -37,7 +23,6 @@ resource "terraform_data" "clusters" {
       for c in cloud edge; do
         k3d cluster create --config ${path.module}/k3d/$c.yaml
         k3d kubeconfig get $c > ${local.out_dir}/kubeconfig-$c.yaml
-        docker inspect -f '{{(index .NetworkSettings.Networks "shiftnote").IPAddress}}' k3d-$c-server-0 > ${local.out_dir}/$c-ip
       done
     EOT
   }
@@ -46,8 +31,6 @@ resource "terraform_data" "clusters" {
     when    = destroy
     command = "k3d cluster delete cloud edge"
   }
-
-  depends_on = [docker_network.shiftnote]
 }
 
 output "next_step" {

@@ -1,0 +1,9 @@
+# Single-node demo clusters: one replica per controller.
+admissionController:
+  replicas: 1
+backgroundController:
+  replicas: 1
+cleanupController:
+  replicas: 1
+reportsController:
+  replicas: 1

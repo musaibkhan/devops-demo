@@ -3,11 +3,21 @@ kind: Namespace
 metadata:
   name: shiftnote
   labels:
-    # Harmless until Istio is installed in phase 2, then every app pod gets a sidecar.
-    istio-injection: enabled
+    istio-injection: enabled          # every app pod gets an Istio sidecar
+    shiftnote.io/policy: restricted   # Kyverno enforces the restricted pod policy
 ---
 # Kafka stays OUT of the mesh: Strimzi does its own TLS, and sidecars break broker listeners.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: kafka
+---
+# Only mTLS traffic is accepted by pods in the app namespace.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: shiftnote
+spec:
+  mtls:
+    mode: STRICT

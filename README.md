@@ -28,10 +28,24 @@ gitops/
 ## Prerequisites (macOS, Apple Silicon)
 
 ```bash
-brew install orbstack k3d tfenv kubectl
+brew install podman k3d tfenv kubectl
 tfenv install    # reads .terraform-version
 ```
-In OrbStack → Settings → System, set the memory limit to **16 GB**.
+
+k3d needs a **rootful** Podman machine with at least **16 GB** of memory and a Docker-compatible socket:
+```bash
+podman machine stop
+podman machine set --rootful --memory 16384 --cpus 8
+sudo "$(brew --prefix)/bin/podman-mac-helper" install   # creates /var/run/docker.sock
+podman machine start
+
+# add to ~/.zshrc
+export DOCKER_HOST=unix:///var/run/docker.sock
+export DOCKER_SOCK=/run/podman/podman.sock   # socket path inside the Podman VM, used by k3d
+```
+Check: `podman info --format '{{.Host.Security.Rootless}}'` prints `false`, and `k3d cluster list` runs without errors.
+
+Docker Desktop or OrbStack also work; for those, only the 16 GB memory limit applies.
 
 ## Quick start
 
@@ -51,7 +65,7 @@ Check: `kubectl get nodes --context k3d-cloud` and `kubectl get nodes --context 
 **3. Bootstrap ArgoCD**
 ```bash
 cd ../02-bootstrap
-cp terraform.tfvars.example terraform.tfvars
+cp terraform.tfvars.example terraform.tfvars   # optional: repo_url defaults to this repo
 terraform init && terraform apply
 ```
 
@@ -62,6 +76,17 @@ terraform init && terraform apply
 ```bash
 kubectl get ns shiftnote kafka --context k3d-edge
 ```
+
+## Platform components
+
+After bootstrap, ArgoCD installs Istio, Argo Rollouts and Kyverno on both clusters, and the monitoring stack (Prometheus, Grafana, Loki, Alloy) on `cloud`. This takes about 5 minutes.
+
+Grafana:
+```bash
+kubectl --context k3d-cloud -n monitoring port-forward svc/kube-prometheus-stack-grafana 3000:80
+kubectl --context k3d-cloud -n monitoring get secret kube-prometheus-stack-grafana -o jsonpath='{.data.admin-password}' | base64 -d; echo
+```
+Open http://localhost:3000 (user `admin`).
 
 ## Teardown
 

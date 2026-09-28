@@ -1,0 +1,52 @@
+# Enforced only in app namespaces; platform namespaces are left alone.
+# Istio CNI mode keeps the injected sidecar compliant (no root istio-init container).
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: restricted-pods
+spec:
+  validationActions: [Deny]
+  autogen:
+    podControllers:
+      controllers: [deployments, replicasets, statefulsets, jobs, cronjobs]
+  matchConstraints:
+    namespaceSelector:
+      matchLabels:
+        shiftnote.io/policy: restricted
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  variables:
+    - name: podNonRoot
+      expression: >-
+        has(object.spec.securityContext) && has(object.spec.securityContext.runAsNonRoot)
+        && object.spec.securityContext.runAsNonRoot
+    - name: allContainers
+      expression: >-
+        object.spec.containers + (has(object.spec.initContainers) ? object.spec.initContainers : [])
+  validations:
+    - expression: >-
+        variables.allContainers.all(c,
+          has(c.securityContext) && has(c.securityContext.runAsNonRoot)
+            ? c.securityContext.runAsNonRoot
+            : variables.podNonRoot)
+      message: "Containers must run as non-root (set runAsNonRoot: true)."
+    - expression: >-
+        variables.allContainers.all(c,
+          has(c.securityContext) && has(c.securityContext.allowPrivilegeEscalation)
+          && c.securityContext.allowPrivilegeEscalation == false)
+      message: "Containers must set allowPrivilegeEscalation: false."
+    - expression: >-
+        variables.allContainers.all(c,
+          has(c.securityContext) && has(c.securityContext.capabilities)
+          && has(c.securityContext.capabilities.drop)
+          && c.securityContext.capabilities.drop.exists(d, d == 'ALL'))
+      message: "Containers must drop ALL capabilities."
+    - expression: >-
+        object.spec.containers.all(c,
+          has(c.resources) && has(c.resources.requests) && has(c.resources.limits)
+          && 'cpu' in c.resources.requests && 'memory' in c.resources.requests
+          && 'memory' in c.resources.limits)
+      message: "Containers must set cpu/memory requests and a memory limit."

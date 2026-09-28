@@ -1,0 +1,22 @@
+# k3s runs these inside the k3s binary; scraping them only produces "target down" alerts.
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeProxy: { enabled: false }
+kubeEtcd: { enabled: false }
+
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    # Pick up every ServiceMonitor/PodMonitor/PrometheusRule, not only ones labelled for this release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    # The edge cluster will remote-write its metrics here.
+    enableRemoteWriteReceiver: true
+
+grafana:
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki.monitoring.svc:3100

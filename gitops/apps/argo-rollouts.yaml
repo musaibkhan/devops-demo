@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - clusters: {}
+  template:
+    metadata:
+      name: '{{.name}}-argo-rollouts'
+    spec:
+      project: default
+      sources:
+        - repoURL: https://github.com/musaibkhan/devops-demo.git
+          targetRevision: main
+          ref: values
+        - repoURL: https://argoproj.github.io/argo-helm
+          chart: argo-rollouts
+          targetRevision: 2.43.2
+          helm:
+            releaseName: argo-rollouts
+            valueFiles: [$values/gitops/platform/argo-rollouts/values.yaml]
+      destination:
+        server: '{{.server}}'
+        namespace: argo-rollouts
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        retry: { limit: 10, backoff: { duration: 10s, factor: 2, maxDuration: 3m } }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]

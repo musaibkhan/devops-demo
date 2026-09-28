@@ -1,5 +1,4 @@
-# Deploys shared namespaces to EVERY registered cluster (in-cluster + edge).
-# If this shows two healthy apps in the ArgoCD UI, hub-and-spoke works.
+# Deploys shared namespaces (and the mesh mTLS policy) to EVERY registered cluster.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -22,3 +21,6 @@ spec:
         server: '{{.server}}'
       syncPolicy:
         automated: { prune: true, selfHeal: true }
+        retry: { limit: 10, backoff: { duration: 10s, factor: 2, maxDuration: 3m } }
+        # PeerAuthentication needs Istio's CRDs; retry until the istio app has installed them.
+        syncOptions: [SkipDryRunOnMissingResource=true]

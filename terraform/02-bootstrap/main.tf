@@ -19,6 +19,12 @@ terraform {
 variable "repo_url" {
   description = "Your public GitHub repo, e.g. https://github.com/<you>/shiftnote.git"
   type        = string
+  default     = "https://github.com/musaibkhan/devops-demo.git"
+
+  validation {
+    condition     = can(regex("^https://github\\.com/.+\\.git$", var.repo_url))
+    error_message = "repo_url must look like https://github.com/<user>/<repo>.git"
+  }
 }
 
 variable "target_revision" {
@@ -30,8 +36,20 @@ locals {
   gen        = abspath("${path.module}/../.generated")
   cloud_kube = "${local.gen}/kubeconfig-cloud.yaml"
   edge       = yamldecode(file("${local.gen}/kubeconfig-edge.yaml"))
-  # Note: container IP is read once; if Docker reassigns it after a restart, re-run this stage.
-  edge_ip = trimspace(file("${local.gen}/edge-ip"))
+  # The edge node's InternalIP is its address on the shared container network.
+  # If the container runtime reassigns it after a restart, re-run this stage.
+  edge_ip = one([
+    for a in data.kubernetes_nodes.edge.nodes[0].status[0].addresses : a.address if a.type == "InternalIP"
+  ])
+}
+
+provider "kubernetes" {
+  alias       = "edge"
+  config_path = "${local.gen}/kubeconfig-edge.yaml"
+}
+
+data "kubernetes_nodes" "edge" {
+  provider = kubernetes.edge
 }
 
 provider "helm" {
