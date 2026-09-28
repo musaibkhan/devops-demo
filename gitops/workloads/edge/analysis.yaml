@@ -1,0 +1,24 @@
+# Canary gate: abort the rollout if more than 5% of the canary's requests fail.
+# Queried from the edge Prometheus, so the decision is made on-site.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: error-rate
+  namespace: shiftnote
+spec:
+  args:
+    - name: canary-hash
+  metrics:
+    - name: error-rate
+      initialDelay: 30s
+      interval: 20s
+      failureLimit: 1
+      # No traffic yet means no evidence of failure; the demo keeps traffic flowing.
+      successCondition: len(result) == 0 || isNaN(result[0]) || result[0] < 0.05
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring.svc:80
+          query: |
+            sum(rate(ingest_requests_total{app="ingest-api", rollouts_pod_template_hash="{{args.canary-hash}}", code=~"5.."}[1m]))
+            /
+            sum(rate(ingest_requests_total{app="ingest-api", rollouts_pod_template_hash="{{args.canary-hash}}"}[1m]))

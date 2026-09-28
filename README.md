@@ -106,6 +106,20 @@ It is queued in edge Kafka, mirrored to the cloud, and picked up by a transcript
 kubectl --context k3d-cloud -n shiftnote logs -l app=transcription-worker -c worker -f
 ```
 
+## Demos
+
+**Canary with automatic rollback.** Run `./scripts/traffic.sh`. In `gitops/workloads/edge/ingest-api.yaml`, change `APP_VERSION` to `v2` and push: traffic shifts 20% → 50% → 100%. Then set `APP_VERSION: v3` and `ERROR_RATE: "0.5"` and push. The analysis sees the error rate on the canary and aborts, and traffic returns to v2. Revert the commit to clear it.
+```bash
+kubectl argo rollouts get rollout ingest-api -n shiftnote --context k3d-edge -w   # optional plugin
+```
+
+**Shift-change burst.** `./scripts/burst.sh 600` queues 600 notes. KEDA scales the workers on consumer lag, up to 6, then back down.
+```bash
+kubectl --context k3d-cloud -n shiftnote get hpa,pods -w
+```
+
+**WAN outage.** `./scripts/wan.sh down` cuts the link between the sites. Notes are still accepted at the edge but stop arriving in the cloud. `./scripts/wan.sh up` restores it, and MirrorMaker2 delivers the backlog.
+
 ## Teardown
 
 Run `terraform destroy` in `02-bootstrap`, then in `01-clusters`.

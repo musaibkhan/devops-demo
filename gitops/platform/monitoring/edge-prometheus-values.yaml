@@ -1,0 +1,21 @@
+# Edge site Prometheus: evaluates canary analysis locally (works even when the WAN is down)
+# and forwards everything to the central Prometheus in the cloud.
+alertmanager: { enabled: false }
+kube-state-metrics: { enabled: false }
+prometheus-node-exporter: { enabled: false }
+prometheus-pushgateway: { enabled: false }
+
+server:
+  retention: 12h
+  global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+    external_labels:
+      site: edge
+  remoteWrite:
+    - url: http://k3d-cloud-server-0:30090/api/v1/write
+  persistentVolume:
+    enabled: false
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 768Mi }

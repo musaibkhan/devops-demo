@@ -12,8 +12,12 @@ prometheus:
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
     probeSelectorNilUsesHelmValues: false
-    # The edge cluster will remote-write its metrics here.
+    # The edge cluster remote-writes its metrics here.
     enableRemoteWriteReceiver: true
+  # Reachable from the edge cluster at k3d-cloud-server-0:30090 over the shared network.
+  service:
+    type: NodePort
+    nodePort: 30090
 
 grafana:
   additionalDataSources:

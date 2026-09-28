@@ -54,11 +54,20 @@ spec:
           virtualService:
             name: ingest-api
             routes: [primary]
+      # Runs in the background from the first step; a failed check aborts and
+      # shifts all traffic back to stable.
+      analysis:
+        templates:
+          - templateName: error-rate
+        args:
+          - name: canary-hash
+            valueFrom:
+              podTemplateHashValue: Latest
       steps:
         - setWeight: 20
-        - pause: { duration: 30s }
+        - pause: { duration: 60s }
         - setWeight: 50
-        - pause: { duration: 30s }
+        - pause: { duration: 60s }
 ---
 apiVersion: v1
 kind: Service
