@@ -7,3 +7,11 @@ cleanupController:
   replicas: 1
 reportsController:
   replicas: 1
+
+# The kyverno-api CRDs otherwise render `labels: {}` / `annotations: {}`, which ArgoCD
+# reports as permanent OutOfSync. Non-empty values make the desired state match live.
+kyverno-api:
+  labels:
+    app.kubernetes.io/part-of: kyverno
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
