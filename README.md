@@ -20,9 +20,12 @@ An edge-to-cloud GitOps demo for a clinical voice documentation pipeline, runnin
 terraform/
   01-clusters/     Docker network + k3d clusters
   02-bootstrap/    ArgoCD, edge cluster registration, root app
+apps/              ingest-api (edge), transcription-worker (cloud)
 gitops/
   apps/            App-of-apps entry point
   platform/        Platform components
+  workloads/       Application manifests (image tags bumped by CI)
+.github/workflows/ Build arm64 images, push to GHCR, bump tags
 ```
 
 ## Prerequisites (macOS, Apple Silicon)
@@ -87,6 +90,21 @@ kubectl --context k3d-cloud -n monitoring port-forward svc/kube-prometheus-stack
 kubectl --context k3d-cloud -n monitoring get secret kube-prometheus-stack-grafana -o jsonpath='{.data.admin-password}' | base64 -d; echo
 ```
 Open http://localhost:3000 (user `admin`).
+
+## Applications
+
+CI builds the images on every push to `apps/` and commits the new tags to `gitops/workloads/`; ArgoCD deploys them. After the first CI run, make both GHCR packages public (GitHub → your profile → Packages → package → Settings → Change visibility) so the clusters can pull them.
+
+Send a note to the edge:
+```bash
+curl -s -X POST http://ingest.localhost:9080/notes \
+  -H 'content-type: application/json' \
+  -d '{"room": "12", "audio_b64": "ZGVtbw=="}'
+```
+It is queued in edge Kafka, mirrored to the cloud, and picked up by a transcription worker:
+```bash
+kubectl --context k3d-cloud -n shiftnote logs -l app=transcription-worker -c worker -f
+```
 
 ## Teardown
 

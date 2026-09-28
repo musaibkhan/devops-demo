@@ -1,0 +1,109 @@
+# ingest-api on the edge: exposed through the Istio ingress gateway at http://ingest.localhost:9080
+# and released as a canary. Argo Rollouts shifts traffic by rewriting the VirtualService
+# weights, so the split is exact regardless of how many pods run.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: ingest-api
+  namespace: shiftnote
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: ingest-api
+  template:
+    metadata:
+      labels:
+        app: ingest-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: ingest-api
+          image: ghcr.io/musaibkhan/devops-demo/ingest-api:bootstrap   # bumped by CI
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: APP_VERSION, value: v1 }
+            - { name: SITE_ID, value: edge }
+            - { name: KAFKA_BOOTSTRAP, value: "edge-kafka-bootstrap.kafka.svc:9092" }
+            - { name: ERROR_RATE, value: "0" }   # set to e.g. "0.5" to demo a failing canary
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+  strategy:
+    canary:
+      stableService: ingest-api-stable
+      canaryService: ingest-api-canary
+      trafficRouting:
+        istio:
+          virtualService:
+            name: ingest-api
+            routes: [primary]
+      steps:
+        - setWeight: 20
+        - pause: { duration: 30s }
+        - setWeight: 50
+        - pause: { duration: 30s }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingest-api-stable
+  namespace: shiftnote
+spec:
+  selector: { app: ingest-api }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingest-api-canary
+  namespace: shiftnote
+spec:
+  selector: { app: ingest-api }
+  ports:
+    - { name: http, port: 80, targetPort: http }
+---
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: ingest
+  namespace: shiftnote
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port: { number: 80, name: http, protocol: HTTP }
+      hosts: [ingest.localhost]
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: ingest-api
+  namespace: shiftnote
+spec:
+  hosts: [ingest.localhost]
+  gateways: [ingest]
+  http:
+    - name: primary
+      route:
+        - destination: { host: ingest-api-stable, port: { number: 80 } }
+          weight: 100
+        - destination: { host: ingest-api-canary, port: { number: 80 } }
+          weight: 0

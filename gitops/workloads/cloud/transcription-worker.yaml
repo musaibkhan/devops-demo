@@ -1,0 +1,83 @@
+# Transcription workers in the cloud, scaled by KEDA on Kafka consumer lag (not CPU):
+# lag is the direct measure of "notes waiting", CPU only reacts after the queue has grown.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transcription-worker
+  namespace: shiftnote
+spec:
+  # No replicas field: KEDA owns the replica count.
+  selector:
+    matchLabels:
+      app: transcription-worker
+  template:
+    metadata:
+      labels:
+        app: transcription-worker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9100"
+        prometheus.io/path: /metrics
+        proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: worker
+          image: ghcr.io/musaibkhan/devops-demo/transcription-worker:bootstrap   # bumped by CI
+          ports:
+            - { name: metrics, containerPort: 9100 }
+          env:
+            - { name: KAFKA_BOOTSTRAP, value: "cloud-kafka-bootstrap.kafka.svc:9092" }
+            - { name: KAFKA_TOPIC, value: edge.care-notes }
+            - { name: TRANSCRIBE_SECONDS, value: "2" }
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: transcription-worker
+  namespace: shiftnote
+spec:
+  scaleTargetRef:
+    name: transcription-worker
+  minReplicaCount: 1
+  maxReplicaCount: 6   # = partitions of edge.care-notes; extra consumers would sit idle
+  pollingInterval: 5
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 60
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: cloud-kafka-bootstrap.kafka.svc:9092
+        consumerGroup: transcription-worker
+        topic: edge.care-notes
+        lagThreshold: "10"   # target: at most 10 waiting notes per worker
+        offsetResetPolicy: earliest
+---
+# Scraped through the Istio sidecar's merged metrics port: STRICT mTLS rejects
+# plaintext scrapes on the app port, but 15020 is served outside mTLS.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: transcription-worker
+  namespace: shiftnote
+spec:
+  selector:
+    matchLabels:
+      app: transcription-worker
+  podMetricsEndpoints:
+    - portNumber: 15020
+      path: /stats/prometheus
