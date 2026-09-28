@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shiftnote
+  labels:
+    # Harmless until Istio is installed in phase 2, then every app pod gets a sidecar.
+    istio-injection: enabled
+---
+# Kafka stays OUT of the mesh: Strimzi does its own TLS, and sidecars break broker listeners.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka

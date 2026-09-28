@@ -1,0 +1,23 @@
+# Edge cluster: simulates one care home. Ingest API + local Kafka buffer.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: edge
+servers: 1
+agents: 0
+network: shiftnote
+ports:
+  # Istio ingress gateway (phase 2): http://*.edge.localhost:9080
+  - port: 9080:80
+    nodeFilters: [loadbalancer]
+options:
+  k3s:
+    extraArgs:
+      - arg: --disable=traefik
+        nodeFilters: [server:*]
+      # ArgoCD in the cloud cluster connects with this name as the TLS server name.
+      - arg: --tls-san=k3d-edge-server-0
+        nodeFilters: [server:*]
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: false

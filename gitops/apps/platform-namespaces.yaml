@@ -1,0 +1,24 @@
+# Deploys shared namespaces to EVERY registered cluster (in-cluster + edge).
+# If this shows two healthy apps in the ArgoCD UI, hub-and-spoke works.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-namespaces
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - clusters: {}
+  template:
+    metadata:
+      name: '{{.name}}-namespaces'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/musaibkhan/devops-demo.git
+        targetRevision: main
+        path: gitops/platform/namespaces
+      destination:
+        server: '{{.server}}'
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }

@@ -1,0 +1,23 @@
+# Cloud cluster: ArgoCD hub, Kafka (replica), transcription workers, observability.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: cloud
+servers: 1
+agents: 0
+network: shiftnote
+ports:
+  # Istio ingress gateway (added in phase 2) is exposed here: http://*.cloud.localhost:8080
+  - port: 8080:80
+    nodeFilters: [loadbalancer]
+options:
+  k3s:
+    extraArgs:
+      # Istio's ingress gateway replaces Traefik.
+      - arg: --disable=traefik
+        nodeFilters: [server:*]
+      - arg: --tls-san=k3d-cloud-server-0
+        nodeFilters: [server:*]
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: false
