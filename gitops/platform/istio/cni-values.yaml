@@ -1,2 +1,4 @@
 global:
-  platform: k3d
+  # "k3s", not "k3d": Istio's k3d profile assumes an old k3s layout (CNI binaries in /bin).
+  # Current k3s images keep them in /var/lib/rancher/k3s/data/cni, which the k3s profile uses.
+  platform: k3s

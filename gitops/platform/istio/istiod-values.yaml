@@ -1,5 +1,5 @@
 global:
-  platform: k3d   # loads Istio's k3d profile (CNI paths)
+  platform: k3s   # loads Istio's k3s profile (CNI paths); see cni-values.yaml
 pilot:
   cni:
     enabled: true # no privileged istio-init container, so pods pass "restricted" PSS
