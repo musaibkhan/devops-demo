@@ -79,5 +79,11 @@ spec:
     matchLabels:
       app: transcription-worker
   podMetricsEndpoints:
-    - portNumber: 15020
+    # Discover via the declared app port, then scrape the sidecar's port 15020 instead:
+    # the native sidecar doesn't declare 15020, so it can't be selected directly.
+    - port: metrics
       path: /stats/prometheus
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_ip]
+          targetLabel: __address__
+          replacement: "$1:15020"
