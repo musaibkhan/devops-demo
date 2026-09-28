@@ -27,7 +27,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: worker
-          image: ghcr.io/musaibkhan/devops-demo/transcription-worker:961bfeaa8793c83bbd8bf823f33e7ea587bf1226   # bumped by CI
+          image: ghcr.io/musaibkhan/devops-demo/transcription-worker:4816f35fcf005038b2e83088229f8137ac9c79f7   # bumped by CI
           ports:
             - { name: metrics, containerPort: 9100 }
           env:
