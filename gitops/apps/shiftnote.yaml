@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: edge-shiftnote
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/musaibkhan/devops-demo.git
+    targetRevision: main
+    path: gitops/workloads/edge
+  destination:
+    name: edge
+    namespace: shiftnote
+  # Argo Rollouts moves these weights during a canary; ArgoCD must not "heal" them back.
+  ignoreDifferences:
+    - group: networking.istio.io
+      kind: VirtualService
+      jqPathExpressions:
+        - .spec.http[].route[].weight
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry: { limit: 10, backoff: { duration: 10s, factor: 2, maxDuration: 3m } }
+    syncOptions: [RespectIgnoreDifferences=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloud-shiftnote
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/musaibkhan/devops-demo.git
+    targetRevision: main
+    path: gitops/workloads/cloud
+  destination:
+    name: in-cluster
+    namespace: shiftnote
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry: { limit: 10, backoff: { duration: 10s, factor: 2, maxDuration: 3m } }
