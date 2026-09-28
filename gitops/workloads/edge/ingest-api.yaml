@@ -16,6 +16,7 @@ spec:
     metadata:
       labels:
         app: ingest-api
+        version: v1   # the release version: shown in Kiali/Grafana; change it to start a canary
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
@@ -32,7 +33,9 @@ spec:
           ports:
             - { name: http, containerPort: 8080 }
           env:
-            - { name: APP_VERSION, value: v1 }
+            - name: APP_VERSION
+              valueFrom:
+                fieldRef: { fieldPath: "metadata.labels['version']" }
             - { name: SITE_ID, value: edge }
             - { name: KAFKA_BOOTSTRAP, value: "edge-kafka-bootstrap.kafka.svc:9092" }
             - { name: ERROR_RATE, value: "0" }   # set to e.g. "0.5" to demo a failing canary

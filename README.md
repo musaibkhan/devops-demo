@@ -114,7 +114,7 @@ Watch them in:
 - **ArgoCD**: the `edge-shiftnote` app tree shows the canary ReplicaSets and AnalysisRuns
 - **Kiali** (Istio UI, edge): `kubectl --context k3d-edge -n istio-system port-forward svc/kiali 20001:20001` → http://localhost:20001. Open **Traffic Graph** and select the `shiftnote` namespace.
 
-**Canary with automatic rollback.** Run `./scripts/traffic.sh`. In `gitops/workloads/edge/ingest-api.yaml`, change `APP_VERSION` to `v2` and push: traffic shifts 20% → 50% → 100%. Then set `APP_VERSION: v3` and `ERROR_RATE: "0.5"` and push. The analysis sees the error rate on the canary and aborts, and traffic returns to v2. Revert the commit to clear it.
+**Canary with automatic rollback.** Run `./scripts/traffic.sh`. In `gitops/workloads/edge/ingest-api.yaml`, change the pod label `version` to `v2` and push: traffic shifts 20% → 50% → 100%. Then set `version: v3` and `ERROR_RATE: "0.5"` and push. The analysis sees the error rate on the canary and aborts, and traffic returns to v2. Revert the commit to clear it.
 ```bash
 kubectl argo rollouts get rollout ingest-api -n shiftnote --context k3d-edge -w   # optional plugin
 ```
